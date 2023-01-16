@@ -1,7 +1,7 @@
 #include <pcap.h>
 #include <stdio.h>
 
-#define ETHER_ADDR_LEN 16
+#define ETHER_ADDR_LEN 6
 
 /* IP Header */
 struct ipheader
@@ -62,13 +62,15 @@ struct ethheader
 /*TCP header */
 struct tcpheader
 {
-  u_short th_sport;    /* source port */
-  u_short th_dport;    /* destination port */
-  unsigned int th_seq; /* sequence number */
-  unsigned int th_ack; /* acknowledgement number */
-  u_short th_win;      /* window */
-  u_short th_sum;      /* checksum */
-  u_short th_urp;      /* urgent pointer */
+  uint16_t source_port;      // 16-bit source port number
+  uint16_t destination_port; // 16-bit destination port number
+  uint32_t sequence_number;  // 32-bit sequence number
+  uint32_t acknowledgement;  // 32-bit acknowledgement number
+  uint8_t data_offset : 4;   // 4-bit data offset and 4-bit reserved
+  uint8_t flags;             // 8-bit flags
+  uint16_t window;           // 16-bit window size
+  uint16_t checksum;         // 16-bit checksum
+  uint16_t urgent_pointer;   // 16-bit urgent pointer (if URG flag is set)
 };
 
 /* Application header*/
@@ -76,10 +78,7 @@ struct appheader
 {
   uint32_t timestamp;
   uint16_t total_length;
-  int16_t cache_flag;
-  int16_t staps_flag;
-  int16_t type_flag;
-  int16_t status_code;
+  uint16_t saved:3, c_flag:1, s_flag:1, t_flag:1, status:10;
   uint16_t cache_control;
   uint16_t __;
 };
@@ -93,21 +92,21 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
   struct appheader *app_header = (struct appheader *)(packet + sizeof(struct ethheader) + sizeof(struct ipheader) + sizeof(struct tcpheader));
 
   FILE *fd;
-  fd = fopen("323861021_207****", "w");
-
+  fd = fopen("323861021_207829813", "a+");
   fprintf(fd, "source ip = %s \n", inet_ntoa(ip_header->iph_sourceip));
   fprintf(fd, "dest ip = %s \n", inet_ntoa(ip_header->iph_destip));
-  fprintf(fd, "source port = %d \n", tcp_header->th_sport);
-  fprintf(fd, "dest port = %d \n", tcp_header->th_dport);
-  fprintf(fd, "timestamp = %d\n", app_header->timestamp);
+  fprintf(fd, "source port = %u \n", ntohs(tcp_header->source_port));
+  fprintf(fd, "dest port = %u \n", ntohs(tcp_header->destination_port));
+  fprintf(fd, "timestamp = %u\n", ntohl(app_header->timestamp));
   fprintf(fd, "total length = %d\n", app_header->total_length);
-  fprintf(fd, "cache flag = %d\n", app_header->cache_flag);
-  fprintf(fd, "steps flag = %d\n", app_header->staps_flag);
-  fprintf(fd, "type flag = %d\n", app_header->type_flag);
-  fprintf(fd, "status code = %d\n", app_header->status_code);
+  fprintf(fd, "cache flag = %d\n", app_header->c_flag);
+  fprintf(fd, "steps flag = %d\n", app_header->s_flag);
+  fprintf(fd, "type flag = %d\n", app_header->t_flag);
+  fprintf(fd, "status code = %d\n", app_header->status);
   fprintf(fd, "cach control = %d\n", app_header->cache_control);
+  fprintf(fd, "------------------\n");
 
-  fclose(fd);
+  fclose(fd); // Close fd
 }
 
 int main()
