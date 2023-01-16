@@ -1,0 +1,11 @@
+source ip = 128.16.2.0 
+dest ip = 254.40.0.0 
+source port = 257 
+dest port = 2568 
+timestamp = 0
+total length = 0
+cache flag = 0
+steps flag = 0
+type flag = 0
+status code = 0
+cach control = 0
