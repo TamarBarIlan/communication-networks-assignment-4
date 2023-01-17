@@ -75,6 +75,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
   struct tcphdr *tcp_header = (struct tcphdr *)(packet + sizeof(struct ethheader) + (ip_header->iph_ihl*4));
   struct appheader *app_header = (struct appheader *)(packet + sizeof(struct ethheader) + (ip_header->iph_ihl*4) + (tcp_header->doff*4));
 
+
   FILE *fd;
   fd = fopen("323861021_207829813", "a+");
 
@@ -89,10 +90,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
   uint16_t dest_port = ntohs(tcp_header->dest);
   uint32_t timestamp = ntohl(app_header->timestamp);
   uint16_t total_length = ntohs(app_header->total_length);
+  // app_header->status = htons(app_header->status);
   uint16_t status_code = app_header->status;
-  uint16_t cach_control = ntohs(app_header->cache_control);
+  uint16_t cach_control = ntohs(app_header->cache_control); 
 
-  
+  uint8_t *data = (uint8_t *)(packet + sizeof(struct ethheader) + (ip_header->iph_ihl*4) + (tcp_header->doff*4) + 12);
+  // uint8_t temp = data;
 
 
   fprintf(fd, "source ip = %s \n", source_ip);
@@ -106,7 +109,17 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
   fprintf(fd, "type flag = %hu\n", type_flag);
   fprintf(fd, "status code = %hu\n", status_code);
   fprintf(fd, "cach control = %hu\n", cach_control);
-  fprintf(fd, "------------------\n");
+
+  fprintf(fd, "DATA:\n");
+  for (int i = 0;   i < total_length ; i++) 
+    {
+        if(!(i&15))
+            fprintf(fd, "\n%04X: ",i);
+
+        fprintf(fd, "%02X ",((unsigned char*)data)[i]);
+    }
+
+  fprintf(fd, "\n------------------\n");
 
   fclose(fd); // Close fd
 }
