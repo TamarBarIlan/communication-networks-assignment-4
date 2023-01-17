@@ -38,20 +38,6 @@ struct ipheader
   struct in_addr iph_destip;       // Destination IP address
 };
 
-// /*TCP header */
-// struct tcpheader
-// {
-//   uint16_t source_port;                   // 16-bit source port number
-//   uint16_t destination_port;              // 16-bit destination port number
-//   uint32_t sequence_number;               // 32-bit sequence number
-//   uint32_t acknowledgement;               // 32-bit acknowledgement number
-//   uint8_t Rreservd_data, data_offset : 4; // 4-bit data offset and 4-bit reserved
-//   uint8_t flags;                          // 8-bit flags
-//   uint16_t window;                        // 16-bit window size
-//   uint16_t checksum;                      // 16-bit checksum
-//   uint16_t urgent_pointer;                // 16-bit urgent pointer (if URG flag is set)
-// };
-
 /* Application header*/
 
 struct appheader

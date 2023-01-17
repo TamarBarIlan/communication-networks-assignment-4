@@ -198,19 +198,11 @@ void sendTCP()
     const char *msg = "Hello Server!\n";
     int data_len = strlen(msg);
     strncpy(data, msg, data_len);
+    
 
     /*********************************************************
        Step 2: Fill in the TCP header.
      ********************************************************/
-
-    // tcp_header->th_sport = htons(12345);
-    // tcp_header->th_dport = htons(9090);
-    // tcp_header->th_sum = in_cksum((unsigned short *)tcp_header, sizeof(struct tcphdr));
-    // tcp_header->th_seq = htonl(rand());
-    // tcp_header->th_ack = htonl(rand());
-    // tcp_header->th_off = 5;
-    // // tcp_header->th_flags = th_flags;
-    // tcp_header->th_urp = 0;
 
     tcp->th_sport = htons(12345);
     tcp->th_dport = htons(9090);
@@ -219,23 +211,8 @@ void sendTCP()
     tcp->th_off = 5;
     tcp->th_flags = TH_ACK;
     tcp->th_urp = 0;
+    tcp->doff = htons(sizeof(struct tcphdr) + data_len);
     tcp->th_sum = in_cksum((unsigned short *)tcp, sizeof(struct tcphdr));
-
-    // tcp->source = htons(12345);
-    // tcp->dest = htons(9090);
-    // tcp->seq = htonl(12345);
-    // tcp->ack_seq = 0;
-    // tcp->doff = 5;
-    // tcp->fin = 0;
-    // tcp->syn = 1;
-    // tcp->rst = 0;
-    // tcp->psh = 0;
-    // tcp->ack = 0;
-    // tcp->urg = 0;
-    // tcp->window = htons(5840);
-    // tcp->check = 0;
-    // tcp->urg_ptr = 0;
-    
 
     /*********************************************************
        Step 3: Fill in the IP header.
