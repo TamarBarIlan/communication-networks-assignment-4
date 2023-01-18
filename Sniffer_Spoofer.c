@@ -125,7 +125,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
         new_ip_header->iph_len = htons(sizeof(struct ipheader) +
                                        sizeof(struct icmpheader));
 
-        new_icmp_header->icmp_type = 8; // ICMP Type: 8 is request, 0 is reply.
+        new_icmp_header->icmp_type = 0; // ICMP Type: 8 is request, 0 is reply.
 
         // Calculate the checksum for integrity
         new_icmp_header->icmp_chksum = 0;
@@ -147,7 +147,7 @@ int main()
     bpf_u_int32 net;
 
     // Step 1: Open live pcap session on NIC with name eth3
-    handle = pcap_open_live("any", BUFSIZ, 1, 1000, errbuf);
+    handle = pcap_open_live("lo", BUFSIZ, 1, 1000, errbuf);
 
     // Step 2: Compile filter_exp into BPF psuedo-code
     pcap_compile(handle, &fp, filter_exp, 0, net);
