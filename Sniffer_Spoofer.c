@@ -15,8 +15,72 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
+/* Ethernet header */
+struct ethheader
+{
+    u_char ether_dhost[ETHER_ADDR_LEN]; /* destination host address */
+    u_char ether_shost[ETHER_ADDR_LEN]; /* source host address */
+    u_short ether_type;                 /* IP? ARP? RARP? etc */
+};
 
-void send_raw_ip_packet(struct ip *ip)
+/* IP Header */
+struct ipheader
+{
+    unsigned char iph_ihl : 4,       // IP header length
+        iph_ver : 4;                 // IP version
+    unsigned char iph_tos;           // Type of service
+    unsigned short int iph_len;      // IP Packet length (data + header)
+    unsigned short int iph_ident;    // Identification
+    unsigned short int iph_flag : 3, // Fragmentation flags
+        iph_offset : 13;             // Flags offset
+    unsigned char iph_ttl;           // Time to Live
+    unsigned char iph_protocol;      // Protocol type
+    unsigned short int iph_chksum;   // IP datagram checksum
+    struct in_addr iph_sourceip;     // Source IP address
+    struct in_addr iph_destip;       // Destination IP address
+};
+
+/* ICMP Header  */
+struct icmpheader
+{
+    unsigned char icmp_type;        // ICMP message type
+    unsigned char icmp_code;        // Error code
+    unsigned short int icmp_chksum; // Checksum for ICMP Header and data
+    unsigned short int id;      // Used for identifying request
+    unsigned short int seq;    // Sequence number
+};
+unsigned short in_cksum(unsigned short *buf, int length)
+{
+    unsigned short *w = buf;
+    int nleft = length;
+    int sum = 0;
+    unsigned short temp = 0;
+
+    /*
+     * The algorithm uses a 32 bit accumulator (sum), adds
+     * sequential 16 bit words to it, and at the end, folds back all
+     * the carry bits from the top 16 bits into the lower 16 bits.
+     */
+    while (nleft > 1)
+    {
+        sum += *w++;
+        nleft -= 2;
+    }
+
+    /* treat the odd byte at the end, if any */
+    if (nleft == 1)
+    {
+        *(u_char *)(&temp) = *(u_char *)w;
+        sum += temp;
+    }
+
+    /* add back carry outs from top 16 bits to low 16 bits */
+    sum = (sum >> 16) + (sum & 0xffff); // add hi 16 to low 16
+    sum += (sum >> 16);                 // add carry
+    return (unsigned short)(~sum);
+}
+
+void send_raw_ip_packet(struct ipheader *ip)
 {
     struct sockaddr_in dest_info;
     int enable = 1;
@@ -30,10 +94,10 @@ void send_raw_ip_packet(struct ip *ip)
 
     // Step 3: Provide needed information about destination.
     dest_info.sin_family = AF_INET;
-    dest_info.sin_addr = ip->ip_dst;
+    dest_info.sin_addr = ip->iph_destip;
 
     // Step 4: Send the packet out.
-    sendto(sock, ip, ntohs(ip->ip_len), 0,
+    sendto(sock, ip, ntohs(ip->iph_len), 0,
            (struct sockaddr *)&dest_info, sizeof(dest_info));
     close(sock);
 }
@@ -41,23 +105,37 @@ void send_raw_ip_packet(struct ip *ip)
 void got_packet(u_char *args, const struct pcap_pkthdr *header,
                 const u_char *packet)
 {
-    struct ip *ip_header = (struct ip *)packet;
-    struct icmp *icmp_header = (struct icmp *)(packet + sizeof(struct ip));
+    struct ipheader *ip_header = (struct ipheader *)(packet + 14);
+    struct icmpheader *icmp_header = (struct icmpheader *)(packet + 14 + sizeof(struct ipheader));
 
-    unsigned char new_packet[ntohs(ip_header->ip_len)];
+    if (icmp_header->icmp_type == 8)
+    {
+        char new_packet[1500];
+        memset(new_packet, 0, 1500);
 
-    // Copy the entire original packet into the new packet
-    memcpy(new_packet, packet, ntohs(ip_header->ip_len));
+        struct ipheader *new_ip_header = (struct ipheader *)(new_packet + 14);
+        struct icmpheader *new_icmp_header = (struct icmpheader *)(new_packet + 14 + sizeof(struct ipheader));
 
-    // Update the destination IP in the new packet
-    struct ip *new_ip_header = (struct ip *)new_packet;
-    new_ip_header->ip_dst = ip_header->ip_src;
-    new_ip_header->ip_src = ip_header->ip_dst;
+        new_ip_header->iph_ver = 4;
+        new_ip_header->iph_ihl = 5;
+        new_ip_header->iph_ttl = 20;
+        new_ip_header->iph_sourceip = ip_header->iph_destip;
+        new_ip_header->iph_destip = ip_header->iph_sourceip;
+        new_ip_header->iph_protocol = IPPROTO_ICMP;
+        new_ip_header->iph_len = htons(sizeof(struct ipheader) +
+                                       sizeof(struct icmpheader));
 
-    // Send the packet
-    send_raw_ip_packet(new_ip_header);
+        new_icmp_header->icmp_type = 8; // ICMP Type: 8 is request, 0 is reply.
+
+        // Calculate the checksum for integrity
+        new_icmp_header->icmp_chksum = 0;
+        new_icmp_header->icmp_chksum = in_cksum((unsigned short *)new_icmp_header,
+                                                sizeof(struct icmpheader));
+
+        // Send the packet
+        send_raw_ip_packet(new_ip_header);
+    }
 }
-
 
 int main()
 {
@@ -69,7 +147,7 @@ int main()
     bpf_u_int32 net;
 
     // Step 1: Open live pcap session on NIC with name eth3
-    handle = pcap_open_live("lo", BUFSIZ, 1, 1000, errbuf);
+    handle = pcap_open_live("any", BUFSIZ, 1, 1000, errbuf);
 
     // Step 2: Compile filter_exp into BPF psuedo-code
     pcap_compile(handle, &fp, filter_exp, 0, net);

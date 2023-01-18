@@ -24,6 +24,14 @@ struct icmpheader
     unsigned short int icmp_seq;    // Sequence number
 };
 
+/* Ethernet header */
+struct ethheader
+{
+    u_char ether_dhost[ETHER_ADDR_LEN]; /* destination host address */
+    u_char ether_shost[ETHER_ADDR_LEN]; /* source host address */
+    u_short ether_type;                 /* IP? ARP? RARP? etc */
+};
+
 /* UDP Header */
 struct udpheader
 {
@@ -52,12 +60,12 @@ struct ipheader
 /* Psuedo TCP header */
 struct pseudo_tcp
 {
-        unsigned saddr, daddr;
-        unsigned char mbz;
-        unsigned char ptcl;
-        unsigned short tcpl;
-        struct tcphdr tcp;
-        char payload[PACKET_LEN];
+    unsigned saddr, daddr;
+    unsigned char mbz;
+    unsigned char ptcl;
+    unsigned short tcpl;
+    struct tcphdr tcp;
+    char payload[PACKET_LEN];
 };
 
 unsigned short in_cksum(unsigned short *buf, int length)
@@ -93,29 +101,25 @@ unsigned short in_cksum(unsigned short *buf, int length)
 
 unsigned short calculate_tcp_checksum(struct ipheader *ip)
 {
-   struct tcpheader *tcp = (struct tcpheader *)((u_char *)ip + 
-                            sizeof(struct ipheader));
+    struct tcpheader *tcp = (struct tcpheader *)((u_char *)ip +
+                                                 sizeof(struct ipheader));
 
-   int tcp_len = ntohs(ip->iph_len) - sizeof(struct ipheader);
+    int tcp_len = ntohs(ip->iph_len) - sizeof(struct ipheader);
 
-   /* pseudo tcp header for the checksum computation */
-   struct pseudo_tcp p_tcp;
-   memset(&p_tcp, 0x0, sizeof(struct pseudo_tcp));
+    /* pseudo tcp header for the checksum computation */
+    struct pseudo_tcp p_tcp;
+    memset(&p_tcp, 0x0, sizeof(struct pseudo_tcp));
 
-   p_tcp.saddr  = ip->iph_sourceip.s_addr;
-   p_tcp.daddr  = ip->iph_destip.s_addr;
-   p_tcp.mbz    = 0;
-   p_tcp.ptcl   = IPPROTO_TCP;
-   p_tcp.tcpl   = htons(tcp_len);
-   memcpy(&p_tcp.tcp, tcp, tcp_len);
+    p_tcp.saddr = ip->iph_sourceip.s_addr;
+    p_tcp.daddr = ip->iph_destip.s_addr;
+    p_tcp.mbz = 0;
+    p_tcp.ptcl = IPPROTO_TCP;
+    p_tcp.tcpl = htons(tcp_len);
+    memcpy(&p_tcp.tcp, tcp, tcp_len);
 
-   return  (unsigned short) in_cksum((unsigned short *)&p_tcp, 
-                                     tcp_len + 12);
+    return (unsigned short)in_cksum((unsigned short *)&p_tcp,
+                                    tcp_len + 12);
 }
-
-
-
-
 
 void send_raw_ip_packet(struct ipheader *ip)
 {
@@ -148,23 +152,26 @@ void sendICMP()
     /*********************************************************
        Step 1: Fill in the ICMP header.
      ********************************************************/
-    struct icmpheader *icmp = (struct icmpheader *)(buffer + sizeof(struct ipheader));
+
+    struct ethheader *etr_header = (struct ethheader *)(buffer);
+    struct ipheader *ip = (struct ipheader *)(buffer + sizeof(struct ethheader));
+    struct icmpheader *icmp = (struct icmpheader *)(buffer + sizeof(struct ethheader) + sizeof(struct ipheader));
     icmp->icmp_type = 8; // ICMP Type: 8 is request, 0 is reply.
 
     // Calculate the checksum for integrity
     icmp->icmp_chksum = 0;
     icmp->icmp_chksum = in_cksum((unsigned short *)icmp,
-                                 sizeof(struct icmpheader));
+      sizeof(struct icmpheader)) ;
 
     /*********************************************************
        Step 2: Fill in the IP header.
      ********************************************************/
-    struct ipheader *ip = (struct ipheader *)buffer;
+    // struct ipheader *ip = (struct ipheader *)buffer;
     ip->iph_ver = 4;
     ip->iph_ihl = 5;
     ip->iph_ttl = 20;
-    ip->iph_sourceip.s_addr = inet_addr("1.1.1.1");
-    ip->iph_destip.s_addr = inet_addr("10.0.2.15");
+    ip->iph_sourceip.s_addr = inet_addr("1.2.3.4");
+    ip->iph_destip.s_addr = inet_addr("10.9.0.1");
     ip->iph_protocol = IPPROTO_ICMP;
     ip->iph_len = htons(sizeof(struct ipheader) +
                         sizeof(struct icmpheader));
@@ -200,7 +207,6 @@ void sendUDP()
     udp->udp_ulen = htons(sizeof(struct udpheader) + data_len);
     udp->udp_sum = 0; /* Many OSes ignore this field, so we do not
                          calculate it. */
-                         
 
     /*********************************************************
        Step 3: Fill in the IP header.
@@ -226,7 +232,7 @@ void sendTCP()
     memset(buffer, 0, 1500);
     // struct ipheader *ip = (struct ipheader *)buffer;
     struct tcphdr *tcp = (struct tcphdr *)(buffer +
-                                                  sizeof(struct ipheader));
+                                           sizeof(struct ipheader));
 
     /*********************************************************
        Step 1: Fill in the TCP data field.
@@ -236,7 +242,6 @@ void sendTCP()
     const char *msg = "Hello Server!\n";
     int data_len = strlen(msg);
     strncpy(data, msg, data_len);
-    
 
     /*********************************************************
        Step 2: Fill in the TCP header.
@@ -250,7 +255,7 @@ void sendTCP()
     tcp->th_flags = TH_ACK;
     tcp->th_urp = 0;
     tcp->doff = htons(sizeof(struct tcphdr) + data_len);
-    
+
     // tcp->th_sum = in_cksum((unsigned short *)tcp, sizeof(struct tcphdr));
 
     /*********************************************************
@@ -279,11 +284,11 @@ int main()
     sendICMP();
     printf("send ICMP packet\n");
 
-    sendUDP();
-    printf("send UDP packet\n");
+    // sendUDP();
+    // printf("send UDP packet\n");
 
-    sendTCP();
-    printf("sent tcp\n");
+    // sendTCP();
+    // printf("sent tcp\n");
 
     return 0;
 }
