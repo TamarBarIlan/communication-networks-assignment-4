@@ -15,14 +15,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
-/* Ethernet header */
-struct ethheader
-{
-    u_char ether_dhost[ETHER_ADDR_LEN]; /* destination host address */
-    u_char ether_shost[ETHER_ADDR_LEN]; /* source host address */
-    u_short ether_type;                 /* IP? ARP? RARP? etc */
-};
-
 /* IP Header */
 struct ipheader
 {
@@ -147,7 +139,7 @@ int main()
     bpf_u_int32 net;
 
     // Step 1: Open live pcap session on NIC with name eth3
-    handle = pcap_open_live("lo", BUFSIZ, 1, 1000, errbuf);
+    handle = pcap_open_live("br-45950789fa68", BUFSIZ, 1, 1000, errbuf);
 
     // Step 2: Compile filter_exp into BPF psuedo-code
     pcap_compile(handle, &fp, filter_exp, 0, net);
