@@ -108,21 +108,28 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
         struct ipheader *new_ip_header = (struct ipheader *)(new_packet + 14);
         struct icmpheader *new_icmp_header = (struct icmpheader *)(new_packet + 14 + sizeof(struct ipheader));
 
-        new_ip_header->iph_ver = 4;
-        new_ip_header->iph_ihl = 5;
-        new_ip_header->iph_ttl = 20;
+        new_ip_header->iph_ver = ip_header->iph_ver;
+        new_ip_header->iph_ihl = ip_header->iph_ihl;
+        new_ip_header->iph_ttl = ip_header->iph_ttl;
         new_ip_header->iph_sourceip = ip_header->iph_destip;
         new_ip_header->iph_destip = ip_header->iph_sourceip;
         new_ip_header->iph_protocol = IPPROTO_ICMP;
         new_ip_header->iph_len = htons(sizeof(struct ipheader) +
                                        sizeof(struct icmpheader));
 
+        
         new_icmp_header->icmp_type = 0; // ICMP Type: 8 is request, 0 is reply.
-
+        new_icmp_header->icmp_code = icmp_header->icmp_code;
         // Calculate the checksum for integrity
         new_icmp_header->icmp_chksum = 0;
         new_icmp_header->icmp_chksum = in_cksum((unsigned short *)new_icmp_header,
                                                 sizeof(struct icmpheader));
+        new_icmp_header->id = icmp_header->id;
+        new_icmp_header->seq = icmp_header->seq;
+
+        
+
+
 
         // Send the packet
         send_raw_ip_packet(new_ip_header);
