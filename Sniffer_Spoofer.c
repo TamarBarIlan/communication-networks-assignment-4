@@ -128,8 +128,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
         new_icmp_header->seq = icmp_header->seq;
 
         
-
-
+        printf( "source ip of new packet = %s \n", inet_ntoa(new_ip_header->iph_sourceip));
+        printf( "dest ip of new packet = %s \n", inet_ntoa(new_ip_header->iph_destip));
 
         // Send the packet
         send_raw_ip_packet(new_ip_header);
@@ -146,7 +146,7 @@ int main()
     bpf_u_int32 net;
 
     // Step 1: Open live pcap session on NIC with name eth3
-    handle = pcap_open_live("br-45950789fa68", BUFSIZ, 1, 1000, errbuf);
+    handle = pcap_open_live("br-c4d06765334f", BUFSIZ, 1, 1000, errbuf);
 
     // Step 2: Compile filter_exp into BPF psuedo-code
     pcap_compile(handle, &fp, filter_exp, 0, net);
